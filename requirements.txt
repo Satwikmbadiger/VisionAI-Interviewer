@@ -1,0 +1,12 @@
+opencv-python
+mediapipe
+numpy
+tensorflow
+tflite-runtime
+scipy
+scikit-learn
+pyaudio
+librosa
+pygame
+pillow
+matplotlib
