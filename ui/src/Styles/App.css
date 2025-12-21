@@ -1,0 +1,38 @@
+#shine-button {
+  overflow: hidden;
+  position: relative;
+}
+
+#shine-button::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  bottom: -50%;
+  left: -50%;
+  background: linear-gradient(
+    to bottom, 
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotateZ(60deg) translate(-6em, 7.5em);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  animation: sheenLoop 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+#shine-button:hover::after, 
+#shine-button:focus::after {
+  opacity: 0;
+}
+
+@keyframes sheenLoop {
+  0%, 100% {
+    transform: rotateZ(60deg) translate(-6em, 7.5em);
+  }
+  10%, 20% {
+    transform: rotateZ(60deg) translate(6em, -7.5em);
+  }
+}
