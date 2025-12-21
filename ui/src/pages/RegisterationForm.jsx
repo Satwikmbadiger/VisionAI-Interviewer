@@ -34,7 +34,7 @@ const RegistrationForm = () => {
                     type: 'success',
                     text: 'Account created successfully! Redirecting to login...'
                 });
-                setTimeout(() => navigate('/login'), 2000);
+                setTimeout(() => navigate('/users/login'), 2000);
             }
         } catch (error) {
             setSubmitMessage({
@@ -85,7 +85,7 @@ const RegistrationForm = () => {
                                     className={`w-full px-4 py-3 bg-[#0f172a] border rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 transition-all ${
                                         errors.fullName ? 'border-red-500/50 focus:ring-red-500/10' : 'border-gray-700 focus:border-[#3b82f6] focus:ring-[#3b82f6]/10'
                                     }`}
-                                    {...register('fullName', { required: 'Full name is required' })}
+                                    {...register('username', { required: 'Full name is required' })}
                                 />
                             </div>
 

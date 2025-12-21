@@ -9,7 +9,7 @@ def register_user_logic(data):
     hashed_pw = generate_password_hash(data.get('password'), method='pbkdf2:sha256')
     new_user = User(
         
-        full_name=data.get('fullName'),
+        username=data.get('username'),
         email=data.get('email'),
         password=hashed_pw
     )
@@ -23,6 +23,6 @@ def login_user_logic(data):
        return {
             "message": "Login successful", 
             "userId": user.id, 
-            "fullName": user.full_name
+            "fullName": user.username
         }, 200
     return {"message": "Invalid credentials"}, 401

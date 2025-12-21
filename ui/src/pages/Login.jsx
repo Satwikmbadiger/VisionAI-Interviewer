@@ -32,11 +32,11 @@ export default function LoginForm() {
 
             // Axios puts the backend JSON inside response.data
             if (response.status === 200) {
-                const { userId, fullName } = response.data;
+                const { userId, username } = response.data;
 
                 setSubmitMessage({
                     type: 'success',
-                    text: `Welcome ${fullName}! Redirecting...`
+                    text: `Welcome ${username}! Redirecting...`
                 });
 
                 // Navigate using the ID, not the full name

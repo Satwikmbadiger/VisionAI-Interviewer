@@ -1,4 +1,4 @@
-import React from 'react';
+import React,{useEffect,useState} from 'react';
 import {
     BarChart3, Clock, CheckCircle, Plus,
     TrendingUp, MessageSquare, ArrowUpRight
@@ -7,10 +7,12 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
+import axios from "axios";
+import {useParams,useNavigate} from "react-router-dom";
+
 
 // Mock Data Object
 const MOCK_DATA = {
-    user_name: "Alex",
     overall_score: 82,
     interviews_done: 14,
     practice_time: "12.5 hrs",
@@ -29,18 +31,49 @@ const MOCK_DATA = {
     ai_insight: "Your eye contact improved by 12% in your last session! Focus on slowing down your speech during technical explanations."
 };
 
+
+
 const Dashboard = () => {
+
+    const [username,setUsername] = useState("");
+    const {userId}= useParams();
+    const navigate = useNavigate();
+
+
+
+        useEffect(() => {
+            const fetchStats = async () => {
+                try {
+                    const response = await axios.get(
+                        `http://localhost:8080/api/users/${userId}`
+                    );
+                    setUsername(response.data.username);
+                } catch (err) {
+                    console.error(err);
+                    alert("Error fetching user info");
+                }
+            };
+
+           void fetchStats()
+        }, [username,userId,setUsername]);
+
+
+
     return (
+
         <div className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 font-sans">
             {/* Header Section */}
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                 <div>
                     <h1 className="text-4xl font-extrabold text-white tracking-tight">
-                        Welcome, <span className="text-sky-400">{MOCK_DATA.user_name}</span>
+                        Welcome, <span className="text-sky-400">{`${username}`}</span>
                     </h1>
                     <p className="text-slate-400 mt-1">Your interview readiness is looking sharp today.</p>
                 </div>
-                <button className="group flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
+                <button className="group flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                 onClick={() => {
+                     navigate(`/interview/${userId}`);
+                 }}>
                     <Plus size={20} />
                     Start New Interview
                 </button>
