@@ -1,0 +1,5 @@
+Processes vs Threads
+- Process has separate memory space
+- Threads share memory
+- Context switching is heavier for processes
+...

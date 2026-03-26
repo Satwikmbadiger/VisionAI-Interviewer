@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.24.2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "interview-bot"
+version = "0.1.0"
+description = "A Python CLI interview/exam prep bot powered by Groq."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Interview Bot Contributors" }]
+dependencies = [
+  "groq>=0.13.0",
+  "typer>=0.12.5",
+  "rich>=13.7.1",
+  "pydantic>=2.8.2",
+  "pypdf>=5.0.0",
+  "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.2",
+  "pytest-cov>=5.0.0",
+]
+
+[project.scripts]
+interview-bot = "interview_bot.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+
