@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import {
     Camera,
     Mic,
@@ -13,15 +14,16 @@ import {
     Video
 } from 'lucide-react';
 
-const DUMMY_QUESTIONS = [
-    "Can you describe a time you handled a difficult technical challenge?",
-    "How do you prioritize your tasks when working on multiple projects?",
-    "Tell me about a time you had a conflict with a teammate and how you resolved it.",
-    "What is your greatest professional achievement so far?",
-    "Where do you see yourself in five years?"
-];
-
 const InterViewPage = () => {
+    // --- ROUTER STATE ---
+    const { id } = useParams(); // Grabs the ID from the URL (e.g., /interview/123)
+    const location = useLocation(); 
+    
+    // Grab questions from the state passed by the navigate() function
+    // Fallback to an empty array for now to prevent crashes if refreshed
+    const questions = location.state?.questions || [];
+
+    // --- COMPONENT STATE ---
     const [step, setStep] = useState(1); // 1: Initial, 2: Setup, 3: Brief, 4: Interview, 5: Processing
     const [currentQ, setCurrentQ] = useState(0);
     const [seconds, setSeconds] = useState(0);
@@ -39,7 +41,6 @@ const InterViewPage = () => {
             streamRef.current = stream;
             setIsCameraReady(true);
 
-            // Immediate attachment if ref is available
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
             }
@@ -48,8 +49,6 @@ const InterViewPage = () => {
         }
     };
 
-    // IMPORTANT: This effect ensures the video feed re-attaches
-    // every time the UI switches between setup and interview steps
     useEffect(() => {
         if (isCameraReady && streamRef.current && videoRef.current) {
             videoRef.current.srcObject = streamRef.current;
@@ -81,7 +80,7 @@ const InterViewPage = () => {
 
     // --- NAVIGATION ---
     const handleNext = () => {
-        if (currentQ < DUMMY_QUESTIONS.length - 1) {
+        if (currentQ < questions.length - 1) {
             setCurrentQ(prev => prev + 1);
             // setSeconds(0); // Uncomment if you want to reset timer per question
         } else {
@@ -101,6 +100,19 @@ const InterViewPage = () => {
         </div>
     );
 
+    // Temporary safeguard if state is completely missing before we build the backend fetch
+    if (!questions || questions.length === 0) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold mb-2">Session Data Missing</h2>
+                    <p className="text-slate-500">Please start the interview from the main setup page.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
             {/* Header */}
@@ -110,7 +122,8 @@ const InterViewPage = () => {
                     <span className="text-xl font-black tracking-tighter text-slate-800 uppercase">AceView</span>
                 </div>
                 <div className="hidden md:flex items-center gap-4 text-sm font-medium text-slate-500">
-                    <span>Interview ID: <span className="text-slate-800 font-mono bg-slate-100 px-2 py-1 rounded">#SESS-88219</span></span>
+                    {/* Updated to show real ID */}
+                    <span>Interview ID: <span className="text-slate-800 font-mono bg-slate-100 px-2 py-1 rounded">#{id?.slice(0, 8)}</span></span>
                 </div>
             </nav>
 
@@ -131,7 +144,7 @@ const InterViewPage = () => {
                     </div>
                 )}
 
-                {/* STEP 2: CAMERA/MIC SETUP */}
+                {/* STEP 2: CAMERA/MIC SETUP (Unchanged visual logic) */}
                 {step === 2 && (
                     <div className="grid md:grid-cols-2 gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
@@ -219,11 +232,12 @@ const InterViewPage = () => {
                         <div className="p-8 space-y-8">
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="text-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <p className="text-2xl font-bold text-blue-600">{DUMMY_QUESTIONS.length}</p>
+                                    {/* Updated Dynamic Length */}
+                                    <p className="text-2xl font-bold text-blue-600">{questions.length}</p>
                                     <p className="text-[10px] text-slate-500 uppercase font-bold">Questions</p>
                                 </div>
                                 <div className="text-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <p className="text-2xl font-bold text-blue-600">~10m</p>
+                                    <p className="text-2xl font-bold text-blue-600">~{questions.length * 2}m</p>
                                     <p className="text-[10px] text-slate-500 uppercase font-bold">Duration</p>
                                 </div>
                                 <div className="text-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -247,7 +261,8 @@ const InterViewPage = () => {
 
                             <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
                                 <h4 className="font-bold text-amber-900 mb-2 text-sm uppercase tracking-wide">First Question Preview:</h4>
-                                <p className="text-amber-800 italic leading-relaxed font-medium">"{DUMMY_QUESTIONS[0]}"</p>
+                                {/* Updated Dynamic First Question */}
+                                <p className="text-amber-800 italic leading-relaxed font-medium">"{questions[0]?.question}"</p>
                             </div>
 
                             <button
@@ -285,12 +300,20 @@ const InterViewPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Overlay: Question Text (Transparent background showing camera behind) */}
+                                {/* Overlay: Question Text */}
                                 <div className="absolute bottom-0 w-full p-8 bg-gradient-to-t from-black/95 via-black/40 to-transparent">
                                     <div className="max-w-3xl mx-auto">
-                                        <p className="text-blue-400 text-xs font-black uppercase tracking-widest mb-2 drop-shadow-md">Question {currentQ + 1} of {DUMMY_QUESTIONS.length}</p>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            {/* Updated dynamic counters and AI tags */}
+                                            <p className="text-blue-400 text-xs font-black uppercase tracking-widest drop-shadow-md">
+                                                Question {currentQ + 1} of {questions.length}
+                                            </p>
+                                            <span className="bg-blue-900/50 text-blue-200 text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-blue-500/30">
+                                                {questions[currentQ]?.type || "General"}
+                                            </span>
+                                        </div>
                                         <p className="text-white text-xl md:text-3xl font-bold leading-tight drop-shadow-lg">
-                                            "{DUMMY_QUESTIONS[currentQ]}"
+                                            "{questions[currentQ]?.question}"
                                         </p>
                                     </div>
                                 </div>
@@ -313,7 +336,8 @@ const InterViewPage = () => {
                                         onClick={handleNext}
                                         className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all shadow-lg shadow-blue-200 active:scale-95"
                                     >
-                                        {currentQ === DUMMY_QUESTIONS.length - 1 ? 'Finish Interview' : 'Next Question'}
+                                        {/* Updated Dynamic Check */}
+                                        {currentQ === questions.length - 1 ? 'Finish Interview' : 'Next Question'}
                                         <ArrowRight size={20} />
                                     </button>
                                 </div>
@@ -387,7 +411,7 @@ const InterViewPage = () => {
                             <div className="mt-12 grid grid-cols-2 gap-4 text-left">
                                 <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Answers Recorded</p>
-                                    <p className="text-2xl font-bold text-slate-800">5 / 5</p>
+                                    <p className="text-2xl font-bold text-slate-800">{questions.length} / {questions.length}</p>
                                 </div>
                                 <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Session Duration</p>

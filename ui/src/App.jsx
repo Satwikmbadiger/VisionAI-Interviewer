@@ -15,7 +15,7 @@ const App = () => {
             <Route path='/users/new' element={<RegisterationForm/>}/>
             <Route path='/users/login' element={<Login/>}/>
              <Route path='/Interview/:userId' element={<InterViewSetupPage/>}/>
-             <Route path='/Interview/sessionId' element={<InterViewPage/>}/>
+             <Route path='/Interview/session/:id' element={<InterViewPage/>}/>
          </Routes>
       </>
    );

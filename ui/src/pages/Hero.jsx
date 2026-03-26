@@ -19,7 +19,7 @@ export default function Hero() {
                         <img src={logo} alt="logo" className="h-full w-full object-cover" />
                     </div>
                     <p className="font-bold text-2xl text-slate-50 tracking-tight">
-                        Ace<span className="text-sky-400">View</span>
+                        Vision<span className="text-sky-400">AI</span>
                     </p>
                 </div>
 

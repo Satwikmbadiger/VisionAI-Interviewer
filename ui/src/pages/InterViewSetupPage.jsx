@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import {useNavigate} from "react-router-dom";
-import { Upload, FileText, Briefcase, CheckCircle, Settings, Clock, MessageSquare, Video, Users } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { Upload, FileText, Briefcase, CheckCircle, Settings, Clock, MessageSquare, Video, Users, Loader2 } from 'lucide-react';
 
 const InterviewSetupPage = () => {
     const [documentChoice, setDocumentChoice] = useState('both');
     const [uploadedResume, setUploadedResume] = useState(null);
     const [uploadedJD, setUploadedJD] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [interviewSettings, setInterviewSettings] = useState({
         duration: '30',
         difficulty: 'medium',
@@ -19,36 +21,63 @@ const InterviewSetupPage = () => {
     const handleFileUpload = (e, type) => {
         const file = e.target.files[0];
         if (file) {
-            if (type === 'resume') {
-                setUploadedResume(file);
-            } else {
-                setUploadedJD(file);
-            }
+            if (type === 'resume') setUploadedResume(file);
+            else setUploadedJD(file);
         }
     };
 
     const canStartInterview = () => {
-        if (documentChoice === 'both') {
-            return uploadedResume && uploadedJD;
-        } else if (documentChoice === 'resume') {
-            return uploadedResume;
-        } else if (documentChoice === 'jd') {
-            return uploadedJD;
-        }
+        if (documentChoice === 'both') return uploadedResume && uploadedJD;
+        if (documentChoice === 'resume') return !!uploadedResume;
+        if (documentChoice === 'jd') return !!uploadedJD;
         return false;
     };
 
-    const handleStartInterview = () => {
-        if (!canStartInterview()) {
-            alert("Please upload the required document(s) to continue.");
-            return;
+    const handleStartInterview = async () => {
+        if (!canStartInterview()) return;
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            // Build multipart form — Flask reads files + settings from this
+            const formData = new FormData();
+
+            if (uploadedResume) formData.append('resume', uploadedResume);
+            if (uploadedJD)     formData.append('jd', uploadedJD);
+
+            // Send settings as a JSON string in the same request
+            formData.append('settings', JSON.stringify(interviewSettings));
+            formData.append('document_choice', documentChoice);
+
+            const response = await fetch('http://localhost:8080/api/interview/generate-questions', {
+                method: 'POST',
+                // ✅ Do NOT set Content-Type manually — browser sets it with the boundary
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || `Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            // data.questions  → array of generated questions
+            // data.session_id → unique ID for this interview session
+
+            // Pass questions to the interview page via router state
+           navigate(`/interview/session/${data.id}`, { // Changed from data.session_id
+                state: {
+                    questions: data.questions,
+                    settings: interviewSettings,
+                }
+            });
+
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
         }
-        console.log("Starting interview with settings:", interviewSettings);
-        console.log("Document choice:", documentChoice);
-        alert("Interview would start now with your custom settings!");
-        navigate("/Interview/sessionId");
-
-
     };
 
     return (
@@ -70,257 +99,185 @@ const InterviewSetupPage = () => {
                         Upload Documents
                     </h2>
 
-                    {/* Document Choice Selection */}
                     <div className="mb-8">
                         <label className="text-sm font-medium mb-3 block text-slate-400">
                             Choose what to upload:
                         </label>
                         <div className="grid grid-cols-3 gap-4">
-                            <button
-                                onClick={() => setDocumentChoice('resume')}
-                                className={`p-4 rounded-lg border-2 transition-all ${
-                                    documentChoice === 'resume'
-                                        ? 'border-blue-500 bg-blue-500/10 text-white shadow-lg shadow-blue-500/20'
-                                        : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-900/80'
-                                }`}
-                            >
-                                <FileText className="w-6 h-6 mx-auto mb-2" />
-                                <p className="font-semibold text-sm">Resume Only</p>
-                                <p className="text-xs text-slate-500 mt-1">General practice</p>
-                            </button>
-
-                            <button
-                                onClick={() => setDocumentChoice('jd')}
-                                className={`p-4 rounded-lg border-2 transition-all ${
-                                    documentChoice === 'jd'
-                                        ? 'border-purple-500 bg-purple-500/10 text-white shadow-lg shadow-purple-500/20'
-                                        : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-900/80'
-                                }`}
-                            >
-                                <Briefcase className="w-6 h-6 mx-auto mb-2" />
-                                <p className="font-semibold text-sm">Job Description Only</p>
-                                <p className="text-xs text-slate-500 mt-1">Role-specific</p>
-                            </button>
-
-                            <button
-                                onClick={() => setDocumentChoice('both')}
-                                className={`p-4 rounded-lg border-2 transition-all ${
-                                    documentChoice === 'both'
-                                        ? 'border-green-500 bg-green-500/10 text-white shadow-lg shadow-green-500/20'
-                                        : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-900/80'
-                                }`}
-                            >
-                                <div className="flex justify-center gap-1 mb-2">
-                                    <FileText className="w-5 h-5" />
-                                    <Briefcase className="w-5 h-5" />
-                                </div>
-                                <p className="font-semibold text-sm">Both Documents</p>
-                                <p className="text-xs text-slate-500 mt-1">Personalized</p>
-                            </button>
+                            {[
+                                { value: 'resume', label: 'Resume Only',        sub: 'General practice',  icon: <FileText className="w-6 h-6 mx-auto mb-2" />,                                       color: 'blue'  },
+                                { value: 'jd',     label: 'Job Description Only', sub: 'Role-specific',   icon: <Briefcase className="w-6 h-6 mx-auto mb-2" />,                                      color: 'purple' },
+                                { value: 'both',   label: 'Both Documents',     sub: 'Personalized',      icon: <div className="flex justify-center gap-1 mb-2"><FileText className="w-5 h-5" /><Briefcase className="w-5 h-5" /></div>, color: 'green' },
+                            ].map(({ value, label, sub, icon, color }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => setDocumentChoice(value)}
+                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                        documentChoice === value
+                                            ? `border-${color}-500 bg-${color}-500/10 text-white shadow-lg shadow-${color}-500/20`
+                                            : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
+                                    }`}
+                                >
+                                    {icon}
+                                    <p className="font-semibold text-sm">{label}</p>
+                                    <p className="text-xs text-slate-500 mt-1">{sub}</p>
+                                </button>
+                            ))}
                         </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
-                        {/* Resume Upload - Show only if needed */}
                         {(documentChoice === 'resume' || documentChoice === 'both') && (
-                            <div className="border-2 border-dashed border-slate-800 rounded-xl p-8 text-center hover:border-blue-500/50 transition-all hover:bg-slate-900/50">
-                                <input
-                                    type="file"
-                                    id="resume"
-                                    accept=".pdf,.doc,.docx"
-                                    onChange={(e) => handleFileUpload(e, 'resume')}
-                                    className="hidden"
-                                />
-                                <label htmlFor="resume" className="cursor-pointer block">
-                                    <FileText className="w-16 h-16 mx-auto mb-4 text-blue-400" />
-                                    <h3 className="text-xl font-semibold mb-2">Your Resume</h3>
-                                    <p className="text-slate-500 text-sm mb-4">PDF, DOC, or DOCX (Max 5MB)</p>
-                                    {uploadedResume ? (
-                                        <div className="bg-green-500/10 border border-green-500/30 px-4 py-3 rounded-lg inline-flex items-center gap-2">
-                                            <CheckCircle className="w-5 h-5 text-green-400" />
-                                            <span className="text-sm font-medium">{uploadedResume.name}</span>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg inline-block transition-colors font-medium">
-                                            Choose File
-                                        </div>
-                                    )}
-                                </label>
-                            </div>
+                            <UploadBox
+                                id="resume"
+                                icon={<FileText className="w-16 h-16 mx-auto mb-4 text-blue-400" />}
+                                title="Your Resume"
+                                hint="PDF, DOC, or DOCX (Max 5MB)"
+                                accept=".pdf,.doc,.docx"
+                                uploadedFile={uploadedResume}
+                                onChange={(e) => handleFileUpload(e, 'resume')}
+                                btnColor="bg-blue-600 hover:bg-blue-700"
+                                borderHover="hover:border-blue-500/50"
+                            />
                         )}
-
-                        {/* JD Upload - Show only if needed */}
                         {(documentChoice === 'jd' || documentChoice === 'both') && (
-                            <div className="border-2 border-dashed border-slate-800 rounded-xl p-8 text-center hover:border-purple-500/50 transition-all hover:bg-slate-900/50">
-                                <input
-                                    type="file"
-                                    id="jd"
-                                    accept=".pdf,.doc,.docx,.txt"
-                                    onChange={(e) => handleFileUpload(e, 'jd')}
-                                    className="hidden"
-                                />
-                                <label htmlFor="jd" className="cursor-pointer block">
-                                    <Briefcase className="w-16 h-16 mx-auto mb-4 text-purple-400" />
-                                    <h3 className="text-xl font-semibold mb-2">Job Description</h3>
-                                    <p className="text-slate-500 text-sm mb-4">PDF, DOC, DOCX, or TXT</p>
-                                    {uploadedJD ? (
-                                        <div className="bg-green-500/10 border border-green-500/30 px-4 py-3 rounded-lg inline-flex items-center gap-2">
-                                            <CheckCircle className="w-5 h-5 text-green-400" />
-                                            <span className="text-sm font-medium">{uploadedJD.name}</span>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg inline-block transition-colors font-medium">
-                                            Choose File
-                                        </div>
-                                    )}
-                                </label>
-                            </div>
+                            <UploadBox
+                                id="jd"
+                                icon={<Briefcase className="w-16 h-16 mx-auto mb-4 text-purple-400" />}
+                                title="Job Description"
+                                hint="PDF, DOC, DOCX, or TXT"
+                                accept=".pdf,.doc,.docx,.txt"
+                                uploadedFile={uploadedJD}
+                                onChange={(e) => handleFileUpload(e, 'jd')}
+                                btnColor="bg-purple-600 hover:bg-purple-700"
+                                borderHover="hover:border-purple-500/50"
+                            />
                         )}
                     </div>
                 </div>
 
-                {/* Interview Settings Section */}
+                {/* Interview Settings */}
                 <div className="bg-slate-800/50 backdrop-blur rounded-2xl border border-slate-700 p-8 mb-6">
                     <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
                         <Settings className="w-6 h-6 text-blue-400" />
                         Interview Settings
                     </h2>
-
                     <div className="grid md:grid-cols-2 gap-6">
-                        {/* Duration */}
-                        <div>
-                            <label className="flex items-center gap-2 text-sm font-medium mb-3">
-                                <Clock className="w-4 h-4 text-blue-400" />
-                                Interview Duration
-                            </label>
-                            <select
-                                value={interviewSettings.duration}
-                                onChange={(e) => setInterviewSettings({...interviewSettings, duration: e.target.value})}
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            >
-                                <option value="15">15 minutes (Quick Practice)</option>
-                                <option value="30">30 minutes (Standard)</option>
-                                <option value="45">45 minutes (Comprehensive)</option>
-                                <option value="60">60 minutes (Full Mock)</option>
-                            </select>
-                        </div>
-
-                        {/* Difficulty */}
-                        <div>
-                            <label className="flex items-center gap-2 text-sm font-medium mb-3">
-                                <Users className="w-4 h-4 text-blue-400" />
-                                Difficulty Level
-                            </label>
-                            <select
-                                value={interviewSettings.difficulty}
-                                onChange={(e) => setInterviewSettings({...interviewSettings, difficulty: e.target.value})}
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            >
-                                <option value="easy">Easy (Entry Level)</option>
-                                <option value="medium">Medium (Mid Level)</option>
-                                <option value="hard">Hard (Senior Level)</option>
-                                <option value="expert">Expert (Leadership)</option>
-                            </select>
-                        </div>
-
-                        {/* Focus Area */}
-                        <div>
-                            <label className="flex items-center gap-2 text-sm font-medium mb-3">
-                                <MessageSquare className="w-4 h-4 text-blue-400" />
-                                Focus Area
-                            </label>
-                            <select
-                                value={interviewSettings.focusArea}
-                                onChange={(e) => setInterviewSettings({...interviewSettings, focusArea: e.target.value})}
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            >
-                                <option value="technical">Technical Skills</option>
-                                <option value="behavioral">Behavioral Questions</option>
-                                <option value="balanced">Balanced Mix</option>
-                                <option value="communication">Communication Skills</option>
-                            </select>
-                        </div>
-
-                        {/* Question Count */}
-                        <div>
-                            <label className="flex items-center gap-2 text-sm font-medium mb-3">
-                                <MessageSquare className="w-4 h-4 text-blue-400" />
-                                Number of Questions
-                            </label>
-                            <select
-                                value={interviewSettings.questionCount}
-                                onChange={(e) => setInterviewSettings({...interviewSettings, questionCount: e.target.value})}
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            >
-                                <option value="3">3 Questions</option>
-                                <option value="5">5 Questions</option>
-                                <option value="7">7 Questions</option>
-                                <option value="10">10 Questions</option>
-                            </select>
-                        </div>
+                        <SelectField label="Interview Duration" icon={<Clock className="w-4 h-4 text-blue-400" />}
+                            value={interviewSettings.duration}
+                            onChange={(v) => setInterviewSettings({ ...interviewSettings, duration: v })}
+                            options={[['15','15 minutes (Quick Practice)'],['30','30 minutes (Standard)'],['45','45 minutes (Comprehensive)'],['60','60 minutes (Full Mock)']]}
+                        />
+                        <SelectField label="Difficulty Level" icon={<Users className="w-4 h-4 text-blue-400" />}
+                            value={interviewSettings.difficulty}
+                            onChange={(v) => setInterviewSettings({ ...interviewSettings, difficulty: v })}
+                            options={[['easy','Easy (Entry Level)'],['medium','Medium (Mid Level)'],['hard','Hard (Senior Level)'],['expert','Expert (Leadership)']]}
+                        />
+                        <SelectField label="Focus Area" icon={<MessageSquare className="w-4 h-4 text-blue-400" />}
+                            value={interviewSettings.focusArea}
+                            onChange={(v) => setInterviewSettings({ ...interviewSettings, focusArea: v })}
+                            options={[['technical','Technical Skills'],['behavioral','Behavioral Questions'],['balanced','Balanced Mix'],['communication','Communication Skills']]}
+                        />
+                        <SelectField label="Number of Questions" icon={<MessageSquare className="w-4 h-4 text-blue-400" />}
+                            value={interviewSettings.questionCount}
+                            onChange={(v) => setInterviewSettings({ ...interviewSettings, questionCount: v })}
+                            options={[['3','3 Questions'],['5','5 Questions'],['7','7 Questions'],['10','10 Questions']]}
+                        />
                     </div>
 
-                    {/* Additional Options */}
                     <div className="mt-6 pt-6 border-t border-slate-700">
                         <h3 className="text-sm font-medium mb-4 text-slate-300">Additional Features</h3>
                         <div className="grid md:grid-cols-2 gap-4">
-                            <label className="flex items-center gap-3 bg-slate-700/30 p-4 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-all">
-                                <input
-                                    type="checkbox"
-                                    checked={interviewSettings.includeVideo}
-                                    onChange={(e) => setInterviewSettings({...interviewSettings, includeVideo: e.target.checked})}
-                                    className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-2 focus:ring-blue-500"
-                                />
-                                <div className="flex items-center gap-2">
-                                    <Video className="w-4 h-4 text-blue-400" />
-                                    <span className="text-sm font-medium">Video Analysis (Eye Contact, Posture)</span>
-                                </div>
-                            </label>
-
-                            <label className="flex items-center gap-3 bg-slate-700/30 p-4 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-all">
-                                <input
-                                    type="checkbox"
-                                    checked={interviewSettings.includeBehavioral}
-                                    onChange={(e) => setInterviewSettings({...interviewSettings, includeBehavioral: e.target.checked})}
-                                    className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-2 focus:ring-blue-500"
-                                />
-                                <div className="flex items-center gap-2">
-                                    <MessageSquare className="w-4 h-4 text-purple-400" />
-                                    <span className="text-sm font-medium">Speech Analysis (Clarity, Confidence)</span>
-                                </div>
-                            </label>
+                            <CheckboxField label="Video Analysis (Eye Contact, Posture)" icon={<Video className="w-4 h-4 text-blue-400" />}
+                                checked={interviewSettings.includeVideo}
+                                onChange={(v) => setInterviewSettings({ ...interviewSettings, includeVideo: v })}
+                            />
+                            <CheckboxField label="Speech Analysis (Clarity, Confidence)" icon={<MessageSquare className="w-4 h-4 text-purple-400" />}
+                                checked={interviewSettings.includeBehavioral}
+                                onChange={(v) => setInterviewSettings({ ...interviewSettings, includeBehavioral: v })}
+                            />
                         </div>
                     </div>
                 </div>
 
-                {/* Action Button */}
-                <div className="flex justify-center">
+                {/* Error Banner */}
+                {error && (
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-6 py-4 mb-6 text-sm">
+                        ⚠️ {error}
+                    </div>
+                )}
+
+                {/* Start Button */}
+                <div className="flex flex-col items-center gap-3">
                     <button
                         onClick={handleStartInterview}
-                        disabled={!canStartInterview()}
+                        disabled={!canStartInterview() || isLoading}
                         className={`px-12 py-4 rounded-xl font-semibold text-lg flex items-center gap-3 transition-all transform hover:scale-105 ${
-                            canStartInterview()
+                            canStartInterview() && !isLoading
                                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-xl shadow-blue-500/30'
                                 : 'bg-slate-700 cursor-not-allowed opacity-50'
                         }`}
                     >
-                        <Video className="w-6 h-6" />
-                        Start AI Interview
+                        {isLoading
+                            ? <><Loader2 className="w-6 h-6 animate-spin" /> Generating Questions…</>
+                            : <><Video className="w-6 h-6" /> Start AI Interview</>
+                        }
                     </button>
+                    {!canStartInterview() && !isLoading && (
+                        <p className="text-slate-400 text-sm">
+                            {documentChoice === 'both'   ? 'Please upload both documents to begin'
+                             : documentChoice === 'resume' ? 'Please upload your resume to begin'
+                             : 'Please upload a job description to begin'}
+                        </p>
+                    )}
                 </div>
-
-                {!canStartInterview() && (
-                    <p className="text-center text-slate-400 text-sm mt-4">
-                        {documentChoice === 'both'
-                            ? 'Please upload both documents to begin'
-                            : documentChoice === 'resume'
-                                ? 'Please upload your resume to begin'
-                                : 'Please upload job description to begin'}
-                    </p>
-                )}
             </div>
         </div>
     );
 };
+
+/* ─── Small reusable sub-components ─────────────────────────────────────── */
+
+const UploadBox = ({ id, icon, title, hint, accept, uploadedFile, onChange, btnColor, borderHover }) => (
+    <div className={`border-2 border-dashed border-slate-800 rounded-xl p-8 text-center ${borderHover} transition-all hover:bg-slate-900/50`}>
+        <input type="file" id={id} accept={accept} onChange={onChange} className="hidden" />
+        <label htmlFor={id} className="cursor-pointer block">
+            {icon}
+            <h3 className="text-xl font-semibold mb-2">{title}</h3>
+            <p className="text-slate-500 text-sm mb-4">{hint}</p>
+            {uploadedFile ? (
+                <div className="bg-green-500/10 border border-green-500/30 px-4 py-3 rounded-lg inline-flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <span className="text-sm font-medium">{uploadedFile.name}</span>
+                </div>
+            ) : (
+                <div className={`${btnColor} px-6 py-2 rounded-lg inline-block transition-colors font-medium`}>
+                    Choose File
+                </div>
+            )}
+        </label>
+    </div>
+);
+
+const SelectField = ({ label, icon, value, onChange, options }) => (
+    <div>
+        <label className="flex items-center gap-2 text-sm font-medium mb-3">{icon}{label}</label>
+        <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+        >
+            {options.map(([val, text]) => <option key={val} value={val}>{text}</option>)}
+        </select>
+    </div>
+);
+
+const CheckboxField = ({ label, icon, checked, onChange }) => (
+    <label className="flex items-center gap-3 bg-slate-700/30 p-4 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-all">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
+            className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-2 focus:ring-blue-500" />
+        <div className="flex items-center gap-2">{icon}<span className="text-sm font-medium">{label}</span></div>
+    </label>
+);
 
 export default InterviewSetupPage;

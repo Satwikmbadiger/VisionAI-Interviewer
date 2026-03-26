@@ -2,7 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from config import Config
 from database import db
-from routes import auth_bp,users_bp
+from routes import auth_bp,users_bp,interview_bp,health_bp
 
 
 def create_app():
@@ -18,6 +18,9 @@ def create_app():
     # Register the routes
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')
+    app.register_blueprint(interview_bp, url_prefix='/api/interview')
+    app.register_blueprint(health_bp, url_prefix='/api/')
+    
 
     with app.app_context():
         db.create_all()
