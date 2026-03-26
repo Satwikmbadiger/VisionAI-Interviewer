@@ -2,12 +2,14 @@ from flask import Blueprint, request, jsonify
 from auth_service import register_user_logic, login_user_logic
 from dashboard_service import user_dashBoard_logic
 from interviewSetup import generate_questions_logic, get_session_logic, ollama_health_logic
+from InterviewService import save_video_chunk_logic
 from HealthService import get_health
 
 auth_bp      = Blueprint('auth', __name__)
 users_bp     = Blueprint('users', __name__)
 interview_bp = Blueprint('interview', __name__)
 health_bp = Blueprint('health',__name__)
+
 
 
 
@@ -61,4 +63,8 @@ def ollamaHealth():
 def getHealth():
     response,status=get_health()
     return jsonify(response), status
- 
+
+@interview_bp.route('/upload-answer', methods=['POST'])
+def saveVideoChunkLogic():
+    response,status=save_video_chunk_logic(request.form, request.files)
+    return jsonify(response), status

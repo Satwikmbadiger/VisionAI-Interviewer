@@ -65,8 +65,7 @@ const InterviewSetupPage = () => {
             // data.questions  → array of generated questions
             // data.session_id → unique ID for this interview session
 
-            // Pass questions to the interview page via router state
-           navigate(`/interview/session/${data.id}`, { // Changed from data.session_id
+           navigate(`/Interview/session/${data.session_id}`, {
                 state: {
                     questions: data.questions,
                     settings: interviewSettings,
